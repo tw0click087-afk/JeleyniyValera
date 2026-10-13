@@ -1,29 +1,64 @@
+
 name: Build Valera APK
 
 on:
   push:
+    branches:
+      - main
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - name: Download repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v4
-      - run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
-      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install Android SDK
+        run: |
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Extract project
-        run: unzip -q *.zip
+
+      - name: Extract Valera project
+        run: |
+          archive="$(find . -maxdepth 1 -type f -name '*.zip' -print -quit)"
+          if [ -z "$archive" ]; then
+            echo "Project ZIP not found"
+            exit 1
+          fi
+          unzip -q "$archive"
+
       - name: Build APK
         working-directory: JeleyniyValera
-        run: gradle assembleDebug --no-daemon
-      - uses: actions/upload-artifact@v4
+        run: |
+          gradle assembleDebug --no-daemon
+
+      - name: Find APK
+        run: |
+          find . -type f -name '*.apk' -print
+          test -n "$(find . -type f -name '*.apk' -print -quit)"
+
+      - name: Upload Valera APK
+        uses: actions/upload-artifact@v4
         with:
           name: Valera-APK
-          path: JeleyniyValera/app/buil
+          path: '**/build/outputs/apk/**/*.apk'
+          if-no-files-found: error
+          retention-days: 30
